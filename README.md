@@ -2,7 +2,7 @@
 
 API RESTful acadêmica de tema **ESG** para gestão de **denúncias de descarte irregular de resíduos da construção civil**.
 
-Permite que usuários cadastrem denúncias informando localização geográfica, categoria do resíduo e status. Inclui autenticação JWT, controle por roles (`USER` / `ADMIN`), validação de dados, tratamento global de exceções e migrations versionadas com Flyway sobre Oracle Database.
+Permite que usuários cadastrem denúncias informando localização geográfica, categoria do resíduo e status. Inclui autenticação JWT, controle por roles (`USER` / `ADMIN`), validação de dados, tratamento global de exceções e migrations versionadas com Flyway sobre Oracle Database (instância FIAP).
 
 ## Stack
 
@@ -10,7 +10,7 @@ Permite que usuários cadastrem denúncias informando localização geográfica,
 - Spring Boot 3.3
 - Spring Web, Spring Data JPA, Bean Validation
 - Spring Security + JWT (jjwt 0.12, HS256+)
-- Oracle Database + Oracle JDBC (`ojdbc11`)
+- Oracle Database FIAP + Oracle JDBC (`ojdbc11`)
 - Flyway (migrations Oracle)
 - Lombok
 - Docker (multi-stage)
@@ -63,20 +63,34 @@ Endpoints autenticados exigem header `Authorization: Bearer <token>`.
 - **Senhas com BCrypt** (`BCryptPasswordEncoder`) — hash gerado no cadastro e validado no login.
 - **`TokenService`** — gera e valida o JWT (HMAC com chave em Base64 vinda da config `security.jwt.secret`).
 - **`JwtAuthenticationFilter`** (`OncePerRequestFilter`) — lê `Authorization: Bearer <token>`, valida via `TokenService` e popula o `SecurityContextHolder`.
-- **`CustomUserDetailsService`** — carrega o `Usuario` (que implementa `UserDetails`) pelo email a partir do `UsuarioRepository`. Usado tanto pelo filtro JWT quanto pelo `DaoAuthenticationProvider` (login).
+- **`CustomUserDetailsService`** — carrega o `Usuario` (que implementa `UserDetails`) pelo email a partir do `UsuarioRepository`.
 - **`SecurityConfig`** — registra o `SecurityFilterChain`, define os request matchers e habilita `@EnableMethodSecurity`.
 
-## Configuração (variáveis de ambiente)
+## Configuração
 
-| Variável            | Default                                       |
-|---------------------|-----------------------------------------------|
-| `DB_URL`            | `jdbc:oracle:thin:@//localhost:1521/XEPDB1`   |
-| `DB_USERNAME`       | `ecodenuncia`                                 |
-| `DB_PASSWORD`       | `ecodenuncia`                                 |
-| `SERVER_PORT`       | `8080`                                        |
-| `JWT_SECRET`        | chave em Base64 (default só para uso local)   |
-| `JWT_EXPIRATION_MS` | `3600000` (1h)                                |
-| `JWT_ISSUER`        | `ecodenuncia-api`                             |
+Todos os parâmetros ficam em `src/main/resources/application.properties` — sem variáveis de ambiente nesta versão acadêmica.
+
+**Conexão com o Oracle FIAP (já configurada):**
+
+```properties
+spring.datasource.url=jdbc:oracle:thin:@oracle.fiap.com.br:1521:ORCL
+spring.datasource.username=RM564616
+spring.datasource.password=120196
+spring.datasource.driver-class-name=oracle.jdbc.OracleDriver
+```
+
+**JPA / Flyway / erros:**
+
+```properties
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.flyway.enabled=true
+spring.flyway.locations=classpath:db/migration
+server.error.include-stacktrace=never
+```
+
+> **Atenção:** as credenciais FIAP são compromisso académico e ficam *commitadas* no repositório de propósito. Em produção real, use `application-prod.properties` separado e/ou variáveis de ambiente / Vault.
 
 ## Migrations (Flyway)
 
@@ -89,27 +103,22 @@ Usuário admin padrão semeado pela V2: **admin@ecodenuncia.com / admin123** (ha
 
 ## Executando localmente
 
-Pré-requisitos: JDK 21, Maven 3.9+, instância Oracle acessível.
+Pré-requisitos: JDK 21, Maven 3.9+, conectividade com `oracle.fiap.com.br:1521` (rede da FIAP / VPN).
 
 ```bash
-export DB_URL="jdbc:oracle:thin:@//localhost:1521/XEPDB1"
-export DB_USERNAME=ecodenuncia
-export DB_PASSWORD=ecodenuncia
-
 mvn spring-boot:run
 ```
+
+A aplicação sobe em `http://localhost:8080` e roda automaticamente as migrations Flyway na conexão FIAP.
 
 ## Executando com Docker
 
 ```bash
 docker build -t ecodenuncia-api .
-
-docker run --rm -p 8080:8080 \
-  -e DB_URL="jdbc:oracle:thin:@//host.docker.internal:1521/XEPDB1" \
-  -e DB_USERNAME=ecodenuncia \
-  -e DB_PASSWORD=ecodenuncia \
-  ecodenuncia-api
+docker run --rm -p 8080:8080 ecodenuncia-api
 ```
+
+> O container precisa de acesso à rede da FIAP para alcançar `oracle.fiap.com.br:1521`.
 
 ## Exemplos de uso
 

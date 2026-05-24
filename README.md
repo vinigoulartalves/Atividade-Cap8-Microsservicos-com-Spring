@@ -9,7 +9,7 @@ Permite que usuários cadastrem denúncias informando localização geográfica,
 - Java 21
 - Spring Boot 3.3
 - Spring Web, Spring Data JPA, Bean Validation
-- Spring Security + JWT (jjwt 0.12)
+- Spring Security + JWT (jjwt 0.12, HS256+)
 - Oracle Database + Oracle JDBC (`ojdbc11`)
 - Flyway (migrations Oracle)
 - Lombok
@@ -19,7 +19,7 @@ Permite que usuários cadastrem denúncias informando localização geográfica,
 
 ```
 src/main/java/br/com/ecodenuncia/api
-├── config/security      # SecurityConfig, JwtService, JwtAuthenticationFilter
+├── config/security      # SecurityConfig, TokenService, JwtAuthenticationFilter, CustomUserDetailsService
 ├── controller           # AuthController, DenunciaController, CategoriaResiduoController
 ├── service              # AuthService, UsuarioService, DenunciaService, CategoriaResiduoService
 ├── repository           # UsuarioRepository, DenunciaRepository, CategoriaResiduoRepository
@@ -37,25 +37,34 @@ src/main/java/br/com/ecodenuncia/api
 
 Enum `StatusDenuncia`: `ABERTA` (default), `EM_ANALISE`, `RESOLVIDA`, `CANCELADA`.
 
-## Endpoints
+## Endpoints e autorização
 
-| Método | Rota | Auth | Role | Status HTTP de sucesso |
-|---|---|---|---|---|
-| POST | `/auth/register` | público | – | 201 Created |
-| POST | `/auth/login` | público | – | 200 OK |
-| GET | `/denuncias` | JWT | USER/ADMIN | 200 OK |
-| GET | `/denuncias/{id}` | JWT | USER/ADMIN | 200 OK |
-| POST | `/denuncias` | JWT | USER/ADMIN | 201 Created (+ `Location`) |
-| PUT | `/denuncias/{id}` | JWT | dono ou ADMIN | 200 OK |
-| PATCH | `/denuncias/{id}/status` | JWT | USER/ADMIN (RESOLVIDA/CANCELADA → ADMIN) | 200 OK |
-| DELETE | `/denuncias/{id}` | JWT | **ADMIN** | 204 No Content |
-| GET | `/categorias` | JWT | USER/ADMIN | 200 OK |
-| GET | `/categorias/{id}` | JWT | USER/ADMIN | 200 OK |
-| POST | `/categorias` | JWT | **ADMIN** | 201 Created (+ `Location`) |
-| PUT | `/categorias/{id}` | JWT | **ADMIN** | 200 OK |
-| DELETE | `/categorias/{id}` | JWT | **ADMIN** | 204 No Content |
+| Método | Rota | Acesso | HTTP de sucesso |
+|---|---|---|---|
+| POST | `/auth/register` | **público** | 201 Created |
+| POST | `/auth/login` | **público** | 200 OK |
+| GET | `/denuncias` | **público** | 200 OK |
+| GET | `/denuncias/{id}` | **público** | 200 OK |
+| POST | `/denuncias` | autenticado | 201 Created (+ `Location`) |
+| PUT | `/denuncias/{id}` | autenticado (dono ou ADMIN) | 200 OK |
+| DELETE | `/denuncias/{id}` | autenticado (dono ou ADMIN) | 204 No Content |
+| PATCH | `/denuncias/{id}/status` | **ADMIN** | 200 OK |
+| GET | `/categorias` | **público** | 200 OK |
+| GET | `/categorias/{id}` | **público** | 200 OK |
+| POST | `/categorias` | **ADMIN** | 201 Created (+ `Location`) |
+| PUT | `/categorias/{id}` | **ADMIN** | 200 OK |
+| DELETE | `/categorias/{id}` | **ADMIN** | 204 No Content |
 
 Endpoints autenticados exigem header `Authorization: Bearer <token>`.
+
+## Como a segurança funciona
+
+- **Stateless** (`SessionCreationPolicy.STATELESS`) — sem sessão HTTP; toda requisição autenticada precisa do JWT.
+- **Senhas com BCrypt** (`BCryptPasswordEncoder`) — hash gerado no cadastro e validado no login.
+- **`TokenService`** — gera e valida o JWT (HMAC com chave em Base64 vinda da config `security.jwt.secret`).
+- **`JwtAuthenticationFilter`** (`OncePerRequestFilter`) — lê `Authorization: Bearer <token>`, valida via `TokenService` e popula o `SecurityContextHolder`.
+- **`CustomUserDetailsService`** — carrega o `Usuario` (que implementa `UserDetails`) pelo email a partir do `UsuarioRepository`. Usado tanto pelo filtro JWT quanto pelo `DaoAuthenticationProvider` (login).
+- **`SecurityConfig`** — registra o `SecurityFilterChain`, define os request matchers e habilita `@EnableMethodSecurity`.
 
 ## Configuração (variáveis de ambiente)
 
@@ -120,14 +129,13 @@ curl -X POST http://localhost:8080/auth/login \
   -d '{"email":"admin@ecodenuncia.com","senha":"admin123"}'
 ```
 
-### Listar categorias (escolha o `categoriaResiduoId` ao criar uma denúncia)
+### Listar categorias (público)
 
 ```bash
-curl -X GET http://localhost:8080/categorias \
-  -H "Authorization: Bearer <TOKEN>"
+curl http://localhost:8080/categorias
 ```
 
-### Criar categoria (apenas ADMIN)
+### Criar categoria (ADMIN)
 
 ```bash
 curl -X POST http://localhost:8080/categorias \
@@ -155,7 +163,7 @@ curl -X POST http://localhost:8080/denuncias \
   }'
 ```
 
-### Atualizar status (USER pode mover para EM_ANALISE/ABERTA; apenas ADMIN para RESOLVIDA/CANCELADA)
+### Atualizar status (ADMIN)
 
 ```bash
 curl -X PATCH http://localhost:8080/denuncias/1/status \

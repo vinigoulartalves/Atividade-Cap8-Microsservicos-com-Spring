@@ -22,14 +22,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Set;
-
 @Service
 @RequiredArgsConstructor
 public class DenunciaService {
-
-    private static final Set<StatusDenuncia> STATUS_RESTRITOS_ADMIN =
-            Set.of(StatusDenuncia.RESOLVIDA, StatusDenuncia.CANCELADA);
 
     private final DenunciaRepository denunciaRepository;
     private final UsuarioRepository usuarioRepository;
@@ -47,7 +42,7 @@ public class DenunciaService {
 
     /**
      * Cria uma nova denuncia.
-     * - dataCriacao e preenchida automaticamente (vide {@code @PrePersist} em Denuncia).
+     * - {@code dataCriacao} e preenchida automaticamente (via {@code @PrePersist} em Denuncia).
      * - Status inicial e sempre {@link StatusDenuncia#ABERTA}.
      */
     @Transactional
@@ -72,15 +67,15 @@ public class DenunciaService {
         return DenunciaResponse.from(denunciaRepository.save(denuncia));
     }
 
+    /**
+     * Atualiza os dados de uma denuncia. USER comum so pode atualizar a propria
+     * denuncia; ADMIN pode atualizar qualquer.
+     */
     @Transactional
     public DenunciaResponse atualizar(Long id, DenunciaUpdateRequest request) {
         Denuncia denuncia = buscarEntidade(id);
         Usuario autenticado = getUsuarioAutenticado();
-
-        if (autenticado.getRole() != Role.ADMIN
-                && !denuncia.getUsuario().getId().equals(autenticado.getId())) {
-            throw new AccessDeniedException("Voce nao tem permissao para alterar esta denuncia");
-        }
+        validarPermissaoEdicao(denuncia, autenticado, "alterar");
 
         CategoriaResiduo categoria = buscarCategoria(request.categoriaResiduoId());
 
@@ -98,40 +93,30 @@ public class DenunciaService {
     }
 
     /**
-     * Atualiza o status de uma denuncia.
-     * Regra de negocio:
-     * - Transicao para {@link StatusDenuncia#RESOLVIDA} ou {@link StatusDenuncia#CANCELADA}
-     *   so e permitida para usuarios com role ADMIN ({@link AccessDeniedException}).
-     * - Demais transicoes sao permitidas para o dono da denuncia ou ADMIN.
+     * Atualiza apenas o status da denuncia.
+     * A protecao de role ADMIN-only e feita no SecurityConfig
+     * ({@code PATCH /denuncias/*\/status} -> hasRole("ADMIN")).
      */
     @Transactional
     public DenunciaResponse atualizarStatus(Long id, StatusUpdateRequest request) {
         Denuncia denuncia = buscarEntidade(id);
-        Usuario autenticado = getUsuarioAutenticado();
-        StatusDenuncia novoStatus = request.status();
-        boolean isAdmin = autenticado.getRole() == Role.ADMIN;
-
-        if (STATUS_RESTRITOS_ADMIN.contains(novoStatus) && !isAdmin) {
-            throw new AccessDeniedException(
-                    "Apenas ADMIN pode alterar o status para RESOLVIDA ou CANCELADA");
-        }
-
-        if (!isAdmin && !denuncia.getUsuario().getId().equals(autenticado.getId())) {
-            throw new AccessDeniedException(
-                    "Voce nao tem permissao para alterar o status desta denuncia");
-        }
-
-        denuncia.setStatus(novoStatus);
+        denuncia.setStatus(request.status());
         return DenunciaResponse.from(denunciaRepository.save(denuncia));
     }
 
+    /**
+     * Remove uma denuncia. USER comum so pode remover a propria denuncia;
+     * ADMIN pode remover qualquer.
+     */
     @Transactional
     public void deletar(Long id) {
-        if (!denunciaRepository.existsById(id)) {
-            throw new RecursoNaoEncontradoException("Denuncia nao encontrada com id: " + id);
-        }
-        denunciaRepository.deleteById(id);
+        Denuncia denuncia = buscarEntidade(id);
+        Usuario autenticado = getUsuarioAutenticado();
+        validarPermissaoEdicao(denuncia, autenticado, "deletar");
+        denunciaRepository.delete(denuncia);
     }
+
+    // ----------------------------------------------------------------------
 
     private Denuncia buscarEntidade(Long id) {
         return denunciaRepository.findById(id)
@@ -152,5 +137,13 @@ public class DenunciaService {
         }
         return usuarioRepository.findById(u.getId())
                 .orElseThrow(() -> new RegraNegocioException("Usuario autenticado nao encontrado"));
+    }
+
+    private void validarPermissaoEdicao(Denuncia denuncia, Usuario autenticado, String acao) {
+        if (autenticado.getRole() != Role.ADMIN
+                && !denuncia.getUsuario().getId().equals(autenticado.getId())) {
+            throw new AccessDeniedException(
+                    "Voce nao tem permissao para " + acao + " esta denuncia");
+        }
     }
 }

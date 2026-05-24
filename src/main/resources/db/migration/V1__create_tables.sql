@@ -21,7 +21,7 @@ CREATE TABLE denuncias (
     endereco VARCHAR2(200) NOT NULL,
     bairro VARCHAR2(100) NOT NULL,
     cidade VARCHAR2(100) NOT NULL,
-    estado CHAR(2) NOT NULL,
+    estado VARCHAR2(2) NOT NULL,
     latitude NUMBER(10, 7) NOT NULL,
     longitude NUMBER(10, 7) NOT NULL,
     categoria VARCHAR2(30) NOT NULL,
@@ -35,7 +35,10 @@ CREATE TABLE denuncias (
         categoria IN ('ENTULHO', 'MADEIRA', 'METAL', 'PLASTICO', 'GESSO', 'CONCRETO', 'SOLO', 'OUTROS')
     ),
     CONSTRAINT ck_denuncias_status CHECK (status IN ('ABERTA', 'EM_ANALISE', 'RESOLVIDA', 'CANCELADA')),
-    CONSTRAINT ck_denuncias_estado CHECK (REGEXP_LIKE(estado, '^[A-Z]{2}$')),
+    CONSTRAINT ck_denuncias_estado CHECK (estado IN (
+        'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
+        'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
+    )),
     CONSTRAINT ck_denuncias_latitude CHECK (latitude BETWEEN -90 AND 90),
     CONSTRAINT ck_denuncias_longitude CHECK (longitude BETWEEN -180 AND 180)
 );

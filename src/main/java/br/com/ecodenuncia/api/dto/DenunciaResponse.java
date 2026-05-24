@@ -6,6 +6,10 @@ import br.com.ecodenuncia.api.model.StatusDenuncia;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * DTO de saida para exibicao de uma denuncia (GET /denuncias e /{id}).
+ * Inclui dados embutidos do usuario e da categoria associados.
+ */
 public record DenunciaResponse(
         Long id,
         String titulo,

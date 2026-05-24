@@ -4,6 +4,10 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+/**
+ * DTO de entrada para cadastro de usuario (POST /auth/register).
+ * Bean Validation: @NotBlank, @Email, @Size.
+ */
 public record RegisterRequest(
 
         @NotBlank(message = "O nome e obrigatorio")
@@ -12,7 +16,7 @@ public record RegisterRequest(
 
         @NotBlank(message = "O email e obrigatorio")
         @Email(message = "Email invalido")
-        @Size(max = 150)
+        @Size(max = 150, message = "O email deve ter no maximo 150 caracteres")
         String email,
 
         @NotBlank(message = "A senha e obrigatoria")

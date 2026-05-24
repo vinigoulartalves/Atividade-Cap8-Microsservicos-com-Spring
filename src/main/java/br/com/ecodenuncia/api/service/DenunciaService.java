@@ -2,6 +2,7 @@ package br.com.ecodenuncia.api.service;
 
 import br.com.ecodenuncia.api.dto.DenunciaRequest;
 import br.com.ecodenuncia.api.dto.DenunciaResponse;
+import br.com.ecodenuncia.api.dto.DenunciaUpdateRequest;
 import br.com.ecodenuncia.api.dto.StatusUpdateRequest;
 import br.com.ecodenuncia.api.exception.BusinessException;
 import br.com.ecodenuncia.api.exception.ResourceNotFoundException;
@@ -63,7 +64,7 @@ public class DenunciaService {
     }
 
     @Transactional
-    public DenunciaResponse atualizar(Long id, DenunciaRequest request) {
+    public DenunciaResponse atualizar(Long id, DenunciaUpdateRequest request) {
         Denuncia denuncia = denunciaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Denuncia nao encontrada com id: " + id));
 

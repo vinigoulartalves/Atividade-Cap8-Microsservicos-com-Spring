@@ -10,6 +10,10 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
+/**
+ * DTO de entrada para cadastro de denuncia (POST /denuncias).
+ * Bean Validation: @NotBlank, @NotNull, @Size, @Pattern, @DecimalMin/Max, @Positive.
+ */
 public record DenunciaRequest(
 
         @NotBlank(message = "O titulo e obrigatorio")
@@ -21,15 +25,15 @@ public record DenunciaRequest(
         String descricao,
 
         @NotBlank(message = "O endereco e obrigatorio")
-        @Size(max = 200)
+        @Size(max = 200, message = "O endereco deve ter no maximo 200 caracteres")
         String endereco,
 
         @NotBlank(message = "O bairro e obrigatorio")
-        @Size(max = 100)
+        @Size(max = 100, message = "O bairro deve ter no maximo 100 caracteres")
         String bairro,
 
         @NotBlank(message = "A cidade e obrigatoria")
-        @Size(max = 100)
+        @Size(max = 100, message = "A cidade deve ter no maximo 100 caracteres")
         String cidade,
 
         @NotBlank(message = "O estado e obrigatorio")

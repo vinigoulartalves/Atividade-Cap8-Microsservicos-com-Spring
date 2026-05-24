@@ -1,11 +1,11 @@
 package br.com.ecodenuncia.api.dto;
 
-import br.com.ecodenuncia.api.model.CategoriaResiduo;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -47,6 +47,7 @@ public record DenunciaRequest(
         BigDecimal longitude,
 
         @NotNull(message = "A categoria do residuo e obrigatoria")
-        CategoriaResiduo categoria
+        @Positive(message = "O id da categoria deve ser positivo")
+        Long categoriaResiduoId
 ) {
 }

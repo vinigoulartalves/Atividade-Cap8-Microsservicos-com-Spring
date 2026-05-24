@@ -10,7 +10,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -41,12 +40,8 @@ public class Usuario implements UserDetails {
     @Column(name = "DS_ROLE", nullable = false, length = 20)
     private Role role;
 
-    @Column(name = "DT_CRIACAO", nullable = false, updatable = false)
-    private LocalDateTime dataCriacao;
-
     @PrePersist
     public void prePersist() {
-        this.dataCriacao = LocalDateTime.now();
         if (this.role == null) {
             this.role = Role.USER;
         }

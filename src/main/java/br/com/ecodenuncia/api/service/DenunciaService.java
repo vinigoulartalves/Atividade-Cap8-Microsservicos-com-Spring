@@ -5,10 +5,12 @@ import br.com.ecodenuncia.api.dto.DenunciaResponse;
 import br.com.ecodenuncia.api.dto.StatusUpdateRequest;
 import br.com.ecodenuncia.api.exception.BusinessException;
 import br.com.ecodenuncia.api.exception.ResourceNotFoundException;
+import br.com.ecodenuncia.api.model.CategoriaResiduo;
 import br.com.ecodenuncia.api.model.Denuncia;
 import br.com.ecodenuncia.api.model.Role;
 import br.com.ecodenuncia.api.model.StatusDenuncia;
 import br.com.ecodenuncia.api.model.Usuario;
+import br.com.ecodenuncia.api.repository.CategoriaResiduoRepository;
 import br.com.ecodenuncia.api.repository.DenunciaRepository;
 import br.com.ecodenuncia.api.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ public class DenunciaService {
 
     private final DenunciaRepository denunciaRepository;
     private final UsuarioRepository usuarioRepository;
+    private final CategoriaResiduoRepository categoriaResiduoRepository;
 
     @Transactional(readOnly = true)
     public Page<DenunciaResponse> listar(Pageable pageable) {
@@ -40,6 +43,7 @@ public class DenunciaService {
     @Transactional
     public DenunciaResponse criar(DenunciaRequest request) {
         Usuario autenticado = getUsuarioAutenticado();
+        CategoriaResiduo categoria = buscarCategoria(request.categoriaResiduoId());
 
         Denuncia denuncia = Denuncia.builder()
                 .titulo(request.titulo())
@@ -50,9 +54,9 @@ public class DenunciaService {
                 .estado(request.estado())
                 .latitude(request.latitude())
                 .longitude(request.longitude())
-                .categoria(request.categoria())
-                .status(StatusDenuncia.PENDENTE)
+                .status(StatusDenuncia.ABERTA)
                 .usuario(autenticado)
+                .categoriaResiduo(categoria)
                 .build();
 
         return DenunciaResponse.from(denunciaRepository.save(denuncia));
@@ -69,6 +73,8 @@ public class DenunciaService {
             throw new BusinessException("Voce nao tem permissao para alterar esta denuncia");
         }
 
+        CategoriaResiduo categoria = buscarCategoria(request.categoriaResiduoId());
+
         denuncia.setTitulo(request.titulo());
         denuncia.setDescricao(request.descricao());
         denuncia.setEndereco(request.endereco());
@@ -77,7 +83,7 @@ public class DenunciaService {
         denuncia.setEstado(request.estado());
         denuncia.setLatitude(request.latitude());
         denuncia.setLongitude(request.longitude());
-        denuncia.setCategoria(request.categoria());
+        denuncia.setCategoriaResiduo(categoria);
 
         return DenunciaResponse.from(denunciaRepository.save(denuncia));
     }
@@ -96,6 +102,12 @@ public class DenunciaService {
             throw new ResourceNotFoundException("Denuncia nao encontrada com id: " + id);
         }
         denunciaRepository.deleteById(id);
+    }
+
+    private CategoriaResiduo buscarCategoria(Long id) {
+        return categoriaResiduoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Categoria de residuo nao encontrada com id: " + id));
     }
 
     private Usuario getUsuarioAutenticado() {

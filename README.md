@@ -22,45 +22,55 @@ src/main/java/br/com/ecodenuncia/api
 ├── config/security      # SecurityConfig, JwtService, JwtAuthenticationFilter
 ├── controller           # AuthController, DenunciaController
 ├── service              # AuthService, DenunciaService
-├── repository           # UsuarioRepository, DenunciaRepository
-├── model                # Usuario, Denuncia, Role, CategoriaResiduo, StatusDenuncia
+├── repository           # UsuarioRepository, DenunciaRepository, CategoriaResiduoRepository
+├── model                # Usuario, CategoriaResiduo, Denuncia, Role, StatusDenuncia
 ├── dto                  # Requests/Responses com Bean Validation
 └── exception            # GlobalExceptionHandler (@RestControllerAdvice), ErrorResponse, BusinessException, ResourceNotFoundException
 ```
 
+## Modelo de dados
+
+- `TB_USUARIO` — `id, nome, email (UK), senha (BCrypt), role (USER/ADMIN)`
+- `TB_CATEGORIA_RESIDUO` — `id, nome (UK), descricao`
+- `TB_DENUNCIA` — `id, titulo, descricao, endereco, bairro, cidade, estado, latitude, longitude, status, dataCriacao` + FKs para `TB_USUARIO` e `TB_CATEGORIA_RESIDUO`
+
+Enum `StatusDenuncia`: `ABERTA` (default), `EM_ANALISE`, `RESOLVIDA`, `CANCELADA`.
+
 ## Endpoints
 
-| Método | Rota                          | Auth      | Role       | Descrição                                  |
-|--------|-------------------------------|-----------|------------|--------------------------------------------|
-| POST   | `/auth/register`              | público   | -          | Cadastro de usuário (role padrão `USER`)   |
-| POST   | `/auth/login`                 | público   | -          | Login com email/senha, retorna JWT         |
-| GET    | `/denuncias`                  | JWT       | USER/ADMIN | Lista denúncias (paginada)                 |
-| GET    | `/denuncias/{id}`             | JWT       | USER/ADMIN | Detalha uma denúncia                       |
-| POST   | `/denuncias`                  | JWT       | USER/ADMIN | Cria denúncia                              |
-| PUT    | `/denuncias/{id}`             | JWT       | USER/ADMIN | Atualiza denúncia (própria ou ADMIN)       |
-| PATCH  | `/denuncias/{id}/status`      | JWT       | **ADMIN**  | Atualiza apenas o status                   |
-| DELETE | `/denuncias/{id}`             | JWT       | **ADMIN**  | Remove denúncia                            |
+| Método | Rota | Auth | Role |
+|---|---|---|---|
+| POST | `/auth/register` | público | – |
+| POST | `/auth/login` | público | – |
+| GET | `/denuncias` | JWT | USER/ADMIN |
+| GET | `/denuncias/{id}` | JWT | USER/ADMIN |
+| POST | `/denuncias` | JWT | USER/ADMIN |
+| PUT | `/denuncias/{id}` | JWT | USER/ADMIN (própria) ou ADMIN |
+| PATCH | `/denuncias/{id}/status` | JWT | **ADMIN** |
+| DELETE | `/denuncias/{id}` | JWT | **ADMIN** |
 
-> Endpoints de criação/alteração/exclusão exigem header `Authorization: Bearer <token>`.
+Endpoints de criação/alteração/exclusão exigem header `Authorization: Bearer <token>`.
 
 ## Configuração (variáveis de ambiente)
 
-| Variável            | Default                                         |
-|---------------------|-------------------------------------------------|
-| `DB_URL`            | `jdbc:oracle:thin:@//localhost:1521/XEPDB1`     |
-| `DB_USERNAME`       | `ecodenuncia`                                   |
-| `DB_PASSWORD`       | `ecodenuncia`                                   |
-| `SERVER_PORT`       | `8080`                                          |
-| `JWT_SECRET`        | chave em Base64 (academic default — troque)    |
-| `JWT_EXPIRATION_MS` | `3600000` (1h)                                  |
-| `JWT_ISSUER`        | `ecodenuncia-api`                               |
+| Variável            | Default                                       |
+|---------------------|-----------------------------------------------|
+| `DB_URL`            | `jdbc:oracle:thin:@//localhost:1521/XEPDB1`   |
+| `DB_USERNAME`       | `ecodenuncia`                                 |
+| `DB_PASSWORD`       | `ecodenuncia`                                 |
+| `SERVER_PORT`       | `8080`                                        |
+| `JWT_SECRET`        | chave em Base64 (default só para uso local)   |
+| `JWT_EXPIRATION_MS` | `3600000` (1h)                                |
+| `JWT_ISSUER`        | `ecodenuncia-api`                             |
 
 ## Migrations (Flyway)
 
 Localizadas em `src/main/resources/db/migration`:
 
-- `V1__create_usuario_table.sql` — tabela `TB_USUARIO`
-- `V2__create_denuncia_table.sql` — tabela `TB_DENUNCIA`
+- `V1__create_tables.sql` — cria `TB_USUARIO`, `TB_CATEGORIA_RESIDUO` e `TB_DENUNCIA` (com FKs, índices e check constraints).
+- `V2__insert_initial_data.sql` — semeia as 9 categorias de resíduo e o usuário administrador padrão.
+
+Usuário admin padrão semeado pela V2: **admin@ecodenuncia.com / admin123** (hash BCrypt embutido na migration; troque em produção).
 
 ## Executando localmente
 
@@ -101,10 +111,12 @@ curl -X POST http://localhost:8080/auth/register \
 ```bash
 curl -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"maria@email.com","senha":"123456"}'
+  -d '{"email":"admin@ecodenuncia.com","senha":"admin123"}'
 ```
 
 ### Criar denúncia (autenticado)
+
+Campo `categoriaResiduoId` referencia uma linha de `TB_CATEGORIA_RESIDUO` (semeada pela V2, ids 1 a 9):
 
 ```bash
 curl -X POST http://localhost:8080/denuncias \
@@ -119,7 +131,7 @@ curl -X POST http://localhost:8080/denuncias \
     "estado":"SP",
     "latitude":-23.5505,
     "longitude":-46.6333,
-    "categoria":"CONCRETO"
+    "categoriaResiduoId":1
   }'
 ```
 
@@ -131,8 +143,6 @@ curl -X PATCH http://localhost:8080/denuncias/1/status \
   -H "Content-Type: application/json" \
   -d '{"status":"EM_ANALISE"}'
 ```
-
-> Para promover um usuário a `ADMIN`, atualize a coluna `DS_ROLE` para `ADMIN` na tabela `TB_USUARIO` (acadêmico).
 
 ## Tratamento global de exceções
 

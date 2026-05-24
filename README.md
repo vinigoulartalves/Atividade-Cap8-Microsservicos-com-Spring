@@ -123,6 +123,23 @@ docker run --rm -p 8080:8080 ecodenuncia-api
 
 > O container precisa de acesso à rede da FIAP para alcançar `oracle.fiap.com.br:1521`.
 
+## Postman
+
+Collection pronta em [`postman/EcoDenuncia.postman_collection.json`](postman/EcoDenuncia.postman_collection.json) (Postman Collection v2.1.0).
+
+- Importe no Postman: **File > Import > Upload Files**.
+- **15 requests** organizados em 3 pastas (`01 - Auth`, `02 - Categorias`, `03 - Denuncias`).
+- **Variáveis de coleção:** `baseUrl` (`http://localhost:8080`), `userToken`, `adminToken`, `categoriaId` (default `1`), `denunciaId`.
+- Scripts de teste **capturam automaticamente** os tokens (no login/registro) e os IDs gerados (no POST de categoria e denúncia) — basta rodar a coleção no **Collection Runner** na ordem padrão para testar todos os endpoints encadeados.
+
+Resumo da coleção:
+
+| Pasta | Requests |
+|---|---|
+| 01 - Auth | Cadastro USER · Cadastro ADMIN (nota) · Login USER · Login ADMIN (seeded) |
+| 02 - Categorias | Listar · Buscar por ID · Criar (ADMIN) · Atualizar (ADMIN) · Excluir (ADMIN) |
+| 03 - Denúncias | Listar (paginado) · Buscar por ID · Criar (USER) · Atualizar · Alterar status (ADMIN) · Excluir |
+
 ## Exemplos de uso
 
 ### Cadastro

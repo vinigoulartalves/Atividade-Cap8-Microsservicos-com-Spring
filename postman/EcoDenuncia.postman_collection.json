@@ -1,0 +1,513 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-4789-90ab-cdef01234567",
+    "name": "EcoDenuncia API",
+    "description": "Collection de testes da EcoDenuncia API (Spring Boot 3 + Oracle FIAP + JWT).\n\n**Como usar**\n1. Suba a aplicacao localmente (`mvn spring-boot:run`).\n2. Rode a pasta `01 - Auth` (ou rode o request `Login ADMIN (seeded)` primeiro).\n3. As variaveis `userToken`, `adminToken`, `categoriaId` e `denunciaId` sao preenchidas automaticamente pelos scripts de teste.\n4. Pode rodar a coleção inteira no Collection Runner; as requisicoes estao ordenadas para serem encadeadas.\n\n**Variaveis de coleção**\n- `baseUrl` (default `http://localhost:8080`)\n- `userToken` / `adminToken` (preenchidas pelos requests de Auth)\n- `categoriaId` (default `1` — categoria CONCRETO semeada pela V2)\n- `denunciaId` (preenchida apos `Criar denuncia`)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 - Auth",
+      "item": [
+        {
+          "name": "Cadastro USER",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set('userToken', json.token);",
+                  "    console.log('userToken capturado.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Maria Silva\",\n  \"email\": \"maria.silva@email.com\",\n  \"senha\": \"senha123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Cria um novo usuario com role `USER` (padrao). Retorna `201 Created` com o token JWT no corpo. O token e armazenado em `{{userToken}}`."
+          }
+        },
+        {
+          "name": "Cadastro ADMIN (apenas USER nesta API)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Joao Administrador\",\n  \"email\": \"joao.admin@email.com\",\n  \"senha\": \"admin12345\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "**Atencao:** o endpoint `/auth/register` sempre cria usuarios com role `USER` por seguranca. Para obter um token ADMIN, use o request `Login ADMIN (seeded)` que faz login com o usuario `admin@ecodenuncia.com` semeado pelo Flyway `V2__insert_initial_data.sql`.\n\nAlternativamente, promova este usuario via SQL:\n\n```sql\nUPDATE TB_USUARIO SET DS_ROLE = 'ADMIN' WHERE DS_EMAIL = 'joao.admin@email.com';\n```"
+          }
+        },
+        {
+          "name": "Login USER",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Resposta contem token', () => pm.expect(json.token).to.be.a('string').and.not.empty);",
+                  "pm.collectionVariables.set('userToken', json.token);",
+                  "console.log('userToken capturado.');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"maria.silva@email.com\",\n  \"senha\": \"senha123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Autentica o usuario `maria.silva@email.com` e armazena o JWT em `{{userToken}}`."
+          }
+        },
+        {
+          "name": "Login ADMIN (seeded)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Role e ADMIN', () => pm.expect(json.role).to.eql('ADMIN'));",
+                  "pm.collectionVariables.set('adminToken', json.token);",
+                  "console.log('adminToken capturado.');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@ecodenuncia.com\",\n  \"senha\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login com o usuario ADMIN padrao semeado pelo Flyway `V2`. Armazena o JWT em `{{adminToken}}`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Categorias",
+      "item": [
+        {
+          "name": "Listar categorias (publico)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/categorias",
+              "host": ["{{baseUrl}}"],
+              "path": ["categorias"]
+            },
+            "description": "Endpoint publico. Lista as 9 categorias semeadas pelo Flyway `V2` (CONCRETO, MADEIRA, METAL, GESSO, CERAMICA, PLASTICO, TINTAS_E_SOLVENTES, MISTO, OUTROS)."
+          }
+        },
+        {
+          "name": "Buscar categoria por ID (publico)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Tem id, nome e descricao', () => {",
+                  "    pm.expect(json).to.have.property('id');",
+                  "    pm.expect(json).to.have.property('nome');",
+                  "    pm.expect(json).to.have.property('descricao');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/categorias/{{categoriaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["categorias", "{{categoriaId}}"]
+            },
+            "description": "Endpoint publico. Busca uma categoria pelo id armazenado em `{{categoriaId}}` (default `1`)."
+          }
+        },
+        {
+          "name": "Criar categoria (ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('categoriaId', json.id);",
+                  "console.log('categoriaId atualizado para ' + json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"VIDRO\",\n  \"descricao\": \"Vidros temperados, laminados e espelhos provenientes de obras e demolicoes\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categorias",
+              "host": ["{{baseUrl}}"],
+              "path": ["categorias"]
+            },
+            "description": "Restrito a ADMIN. Cria uma nova categoria e armazena o id em `{{categoriaId}}`. Tentativa de duplicar o `nome` retorna 400 (`RegraNegocioException`)."
+          }
+        },
+        {
+          "name": "Atualizar categoria (ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"VIDRO E CRISTAIS\",\n  \"descricao\": \"Vidros, cristais e espelhos provenientes de obras, reformas e demolicoes\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categorias/{{categoriaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["categorias", "{{categoriaId}}"]
+            },
+            "description": "Restrito a ADMIN. Atualiza nome e descricao da categoria de id `{{categoriaId}}`."
+          }
+        },
+        {
+          "name": "Excluir categoria (ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/categorias/{{categoriaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["categorias", "{{categoriaId}}"]
+            },
+            "description": "Restrito a ADMIN. Remove a categoria de id `{{categoriaId}}`. Atencao: se houver denuncias usando a categoria, a integridade referencial impedira a exclusao (erro de banco)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Denuncias",
+      "item": [
+        {
+          "name": "Listar denuncias (publico, paginado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Resposta paginada', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('content');",
+                  "    pm.expect(json).to.have.property('totalElements');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/denuncias?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["denuncias"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            },
+            "description": "Endpoint publico. Lista denuncias paginadas (`Page<DenunciaResponse>` do Spring Data). Suporta os parametros `page`, `size` e `sort` (ex.: `sort=dataCriacao,desc`)."
+          }
+        },
+        {
+          "name": "Buscar denuncia por ID (publico)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/denuncias/{{denunciaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["denuncias", "{{denunciaId}}"]
+            },
+            "description": "Endpoint publico. Busca a denuncia pelo id armazenado em `{{denunciaId}}`. Retorna 404 (`RecursoNaoEncontradoException`) se nao existir."
+          }
+        },
+        {
+          "name": "Criar denuncia (USER)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Header Location presente', () => pm.expect(pm.response.headers.get('Location')).to.match(/\\/denuncias\\/\\d+$/));",
+                  "const json = pm.response.json();",
+                  "pm.test('Status inicial e ABERTA', () => pm.expect(json.status).to.eql('ABERTA'));",
+                  "pm.collectionVariables.set('denunciaId', json.id);",
+                  "console.log('denunciaId atualizado para ' + json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Entulho irregular na calcada\",\n  \"descricao\": \"Restos de concreto, tijolos e madeira abandonados ha 3 dias no canteiro central da rua, atrapalhando pedestres e a passagem de cadeirantes.\",\n  \"endereco\": \"Rua das Flores, 123\",\n  \"bairro\": \"Vila Mariana\",\n  \"cidade\": \"Sao Paulo\",\n  \"estado\": \"SP\",\n  \"latitude\": -23.5505,\n  \"longitude\": -46.6333,\n  \"categoriaResiduoId\": {{categoriaId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/denuncias",
+              "host": ["{{baseUrl}}"],
+              "path": ["denuncias"]
+            },
+            "description": "Exige autenticacao. Cria uma denuncia em nome do usuario logado (`{{userToken}}`). `dataCriacao` e preenchida automaticamente e status inicial e `ABERTA`. Armazena o id em `{{denunciaId}}`."
+          }
+        },
+        {
+          "name": "Atualizar denuncia (dono ou ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Entulho irregular na calcada (atualizado)\",\n  \"descricao\": \"Apos visita, confirmado entulho de concreto e tijolos. Volume estimado em 2 metros cubicos. Continua bloqueando a calcada.\",\n  \"endereco\": \"Rua das Flores, 123 - proximo ao numero 130\",\n  \"bairro\": \"Vila Mariana\",\n  \"cidade\": \"Sao Paulo\",\n  \"estado\": \"SP\",\n  \"latitude\": -23.5510,\n  \"longitude\": -46.6340,\n  \"categoriaResiduoId\": {{categoriaId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/denuncias/{{denunciaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["denuncias", "{{denunciaId}}"]
+            },
+            "description": "Atualizacao completa (PUT) da denuncia. USER comum so pode atualizar a propria denuncia; ADMIN pode atualizar qualquer. Caso contrario retorna 403 (`AccessDeniedException`)."
+          }
+        },
+        {
+          "name": "Alterar status (ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Status atualizado para RESOLVIDA', () => pm.expect(pm.response.json().status).to.eql('RESOLVIDA'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"RESOLVIDA\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/denuncias/{{denunciaId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["denuncias", "{{denunciaId}}", "status"]
+            },
+            "description": "Restrito a ADMIN. Valores aceitos pelo enum `StatusDenuncia`: `ABERTA`, `EM_ANALISE`, `RESOLVIDA`, `CANCELADA`."
+          }
+        },
+        {
+          "name": "Excluir denuncia (dono ou ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/denuncias/{{denunciaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["denuncias", "{{denunciaId}}"]
+            },
+            "description": "Exige autenticacao. USER comum so pode excluir a propria denuncia; ADMIN pode excluir qualquer (este request usa `{{adminToken}}` por seguranca)."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "userToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "categoriaId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "denunciaId",
+      "value": "1",
+      "type": "string"
+    }
+  ]
+}

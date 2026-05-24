@@ -13,7 +13,7 @@ Permite que usuários cadastrem denúncias informando localização geográfica,
 - Oracle Database FIAP + Oracle JDBC (`ojdbc11`)
 - Flyway (migrations Oracle)
 - Lombok
-- Docker (multi-stage)
+- Docker (single-stage, `eclipse-temurin:21-alpine`)
 
 ## Arquitetura em camadas
 
@@ -113,7 +113,10 @@ A aplicação sobe em `http://localhost:8080` e roda automaticamente as migratio
 
 ## Executando com Docker
 
+O `Dockerfile` é **single-stage** (`eclipse-temurin:21-alpine`) e espera o jar já compilado em `target/`. Faça o build do jar primeiro:
+
 ```bash
+mvn clean package -DskipTests
 docker build -t ecodenuncia-api .
 docker run --rm -p 8080:8080 ecodenuncia-api
 ```

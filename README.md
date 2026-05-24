@@ -20,12 +20,13 @@ Permite que usuários cadastrem denúncias informando localização geográfica,
 ```
 src/main/java/br/com/ecodenuncia/api
 ├── config/security      # SecurityConfig, JwtService, JwtAuthenticationFilter
-├── controller           # AuthController, DenunciaController
-├── service              # AuthService, DenunciaService
+├── controller           # AuthController, DenunciaController, CategoriaResiduoController
+├── service              # AuthService, UsuarioService, DenunciaService, CategoriaResiduoService
 ├── repository           # UsuarioRepository, DenunciaRepository, CategoriaResiduoRepository
 ├── model                # Usuario, CategoriaResiduo, Denuncia, Role, StatusDenuncia
 ├── dto                  # Requests/Responses com Bean Validation
-└── exception            # GlobalExceptionHandler (@RestControllerAdvice), ErrorResponse, BusinessException, ResourceNotFoundException
+└── exception            # GlobalExceptionHandler (@RestControllerAdvice), ErrorResponse,
+                          RecursoNaoEncontradoException, RegraNegocioException
 ```
 
 ## Modelo de dados
@@ -38,18 +39,23 @@ Enum `StatusDenuncia`: `ABERTA` (default), `EM_ANALISE`, `RESOLVIDA`, `CANCELADA
 
 ## Endpoints
 
-| Método | Rota | Auth | Role |
-|---|---|---|---|
-| POST | `/auth/register` | público | – |
-| POST | `/auth/login` | público | – |
-| GET | `/denuncias` | JWT | USER/ADMIN |
-| GET | `/denuncias/{id}` | JWT | USER/ADMIN |
-| POST | `/denuncias` | JWT | USER/ADMIN |
-| PUT | `/denuncias/{id}` | JWT | USER/ADMIN (própria) ou ADMIN |
-| PATCH | `/denuncias/{id}/status` | JWT | **ADMIN** |
-| DELETE | `/denuncias/{id}` | JWT | **ADMIN** |
+| Método | Rota | Auth | Role | Status HTTP de sucesso |
+|---|---|---|---|---|
+| POST | `/auth/register` | público | – | 201 Created |
+| POST | `/auth/login` | público | – | 200 OK |
+| GET | `/denuncias` | JWT | USER/ADMIN | 200 OK |
+| GET | `/denuncias/{id}` | JWT | USER/ADMIN | 200 OK |
+| POST | `/denuncias` | JWT | USER/ADMIN | 201 Created (+ `Location`) |
+| PUT | `/denuncias/{id}` | JWT | dono ou ADMIN | 200 OK |
+| PATCH | `/denuncias/{id}/status` | JWT | USER/ADMIN (RESOLVIDA/CANCELADA → ADMIN) | 200 OK |
+| DELETE | `/denuncias/{id}` | JWT | **ADMIN** | 204 No Content |
+| GET | `/categorias` | JWT | USER/ADMIN | 200 OK |
+| GET | `/categorias/{id}` | JWT | USER/ADMIN | 200 OK |
+| POST | `/categorias` | JWT | **ADMIN** | 201 Created (+ `Location`) |
+| PUT | `/categorias/{id}` | JWT | **ADMIN** | 200 OK |
+| DELETE | `/categorias/{id}` | JWT | **ADMIN** | 204 No Content |
 
-Endpoints de criação/alteração/exclusão exigem header `Authorization: Bearer <token>`.
+Endpoints autenticados exigem header `Authorization: Bearer <token>`.
 
 ## Configuração (variáveis de ambiente)
 
@@ -114,9 +120,23 @@ curl -X POST http://localhost:8080/auth/login \
   -d '{"email":"admin@ecodenuncia.com","senha":"admin123"}'
 ```
 
-### Criar denúncia (autenticado)
+### Listar categorias (escolha o `categoriaResiduoId` ao criar uma denúncia)
 
-Campo `categoriaResiduoId` referencia uma linha de `TB_CATEGORIA_RESIDUO` (semeada pela V2, ids 1 a 9):
+```bash
+curl -X GET http://localhost:8080/categorias \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+### Criar categoria (apenas ADMIN)
+
+```bash
+curl -X POST http://localhost:8080/categorias \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"nome":"VIDRO","descricao":"Janelas, vidros temperados e laminados de obras"}'
+```
+
+### Criar denúncia (autenticado)
 
 ```bash
 curl -X POST http://localhost:8080/denuncias \
@@ -135,13 +155,13 @@ curl -X POST http://localhost:8080/denuncias \
   }'
 ```
 
-### Atualizar status (apenas ADMIN)
+### Atualizar status (USER pode mover para EM_ANALISE/ABERTA; apenas ADMIN para RESOLVIDA/CANCELADA)
 
 ```bash
 curl -X PATCH http://localhost:8080/denuncias/1/status \
   -H "Authorization: Bearer <ADMIN_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"status":"EM_ANALISE"}'
+  -d '{"status":"RESOLVIDA"}'
 ```
 
 ## Tratamento global de exceções
@@ -160,3 +180,15 @@ Toda resposta de erro segue o formato padronizado abaixo (gerado por `GlobalExce
   ]
 }
 ```
+
+Mapeamento de exceções → HTTP:
+
+| Exceção | HTTP |
+|---|---|
+| `RecursoNaoEncontradoException` | 404 Not Found |
+| `RegraNegocioException` | 400 Bad Request |
+| `MethodArgumentNotValidException` | 400 (lista de erros por campo) |
+| `HttpMessageNotReadableException` | 400 |
+| `BadCredentialsException` / `AuthenticationException` | 401 Unauthorized |
+| `AccessDeniedException` | 403 Forbidden |
+| Exceção genérica | 500 Internal Server Error |

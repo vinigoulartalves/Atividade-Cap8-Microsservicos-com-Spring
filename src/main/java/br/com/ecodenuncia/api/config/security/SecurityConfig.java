@@ -37,11 +37,17 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
 
-                        // Apenas ADMIN deleta denuncias
-                        .requestMatchers(HttpMethod.DELETE, "/denuncias/**").hasRole("ADMIN")
+                        // Categorias: leitura para qualquer autenticado;
+                        // escrita (POST/PUT/DELETE) restrita a ADMIN
+                        .requestMatchers(HttpMethod.GET, "/categorias/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/categorias/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/categorias/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/categorias/**").hasRole("ADMIN")
 
-                        // PATCH /denuncias/{id}/status: autenticado (a regra granular
-                        // RESOLVIDA/CANCELADA so para ADMIN e tratada no service).
+                        // Denuncias: apenas ADMIN deleta;
+                        // PATCH /denuncias/{id}/status fica autenticado e a regra
+                        // granular RESOLVIDA/CANCELADA so para ADMIN e tratada no service.
+                        .requestMatchers(HttpMethod.DELETE, "/denuncias/**").hasRole("ADMIN")
 
                         // Demais endpoints exigem autenticacao
                         .anyRequest().authenticated()

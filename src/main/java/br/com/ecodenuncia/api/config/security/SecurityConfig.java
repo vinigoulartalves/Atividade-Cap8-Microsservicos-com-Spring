@@ -33,10 +33,17 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Endpoints publicos
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+
+                        // Apenas ADMIN deleta denuncias
                         .requestMatchers(HttpMethod.DELETE, "/denuncias/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/denuncias/**").hasRole("ADMIN")
+
+                        // PATCH /denuncias/{id}/status: autenticado (a regra granular
+                        // RESOLVIDA/CANCELADA so para ADMIN e tratada no service).
+
+                        // Demais endpoints exigem autenticacao
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())

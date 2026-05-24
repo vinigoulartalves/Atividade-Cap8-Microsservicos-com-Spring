@@ -4,8 +4,8 @@ import br.com.ecodenuncia.api.dto.DenunciaRequest;
 import br.com.ecodenuncia.api.dto.DenunciaResponse;
 import br.com.ecodenuncia.api.dto.DenunciaUpdateRequest;
 import br.com.ecodenuncia.api.dto.StatusUpdateRequest;
-import br.com.ecodenuncia.api.exception.BusinessException;
-import br.com.ecodenuncia.api.exception.ResourceNotFoundException;
+import br.com.ecodenuncia.api.exception.RecursoNaoEncontradoException;
+import br.com.ecodenuncia.api.exception.RegraNegocioException;
 import br.com.ecodenuncia.api.model.CategoriaResiduo;
 import br.com.ecodenuncia.api.model.Denuncia;
 import br.com.ecodenuncia.api.model.Role;
@@ -17,13 +17,19 @@ import br.com.ecodenuncia.api.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Set;
+
 @Service
 @RequiredArgsConstructor
 public class DenunciaService {
+
+    private static final Set<StatusDenuncia> STATUS_RESTRITOS_ADMIN =
+            Set.of(StatusDenuncia.RESOLVIDA, StatusDenuncia.CANCELADA);
 
     private final DenunciaRepository denunciaRepository;
     private final UsuarioRepository usuarioRepository;
@@ -36,11 +42,14 @@ public class DenunciaService {
 
     @Transactional(readOnly = true)
     public DenunciaResponse buscarPorId(Long id) {
-        Denuncia denuncia = denunciaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Denuncia nao encontrada com id: " + id));
-        return DenunciaResponse.from(denuncia);
+        return DenunciaResponse.from(buscarEntidade(id));
     }
 
+    /**
+     * Cria uma nova denuncia.
+     * - dataCriacao e preenchida automaticamente (vide {@code @PrePersist} em Denuncia).
+     * - Status inicial e sempre {@link StatusDenuncia#ABERTA}.
+     */
     @Transactional
     public DenunciaResponse criar(DenunciaRequest request) {
         Usuario autenticado = getUsuarioAutenticado();
@@ -65,13 +74,12 @@ public class DenunciaService {
 
     @Transactional
     public DenunciaResponse atualizar(Long id, DenunciaUpdateRequest request) {
-        Denuncia denuncia = denunciaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Denuncia nao encontrada com id: " + id));
-
+        Denuncia denuncia = buscarEntidade(id);
         Usuario autenticado = getUsuarioAutenticado();
+
         if (autenticado.getRole() != Role.ADMIN
                 && !denuncia.getUsuario().getId().equals(autenticado.getId())) {
-            throw new BusinessException("Voce nao tem permissao para alterar esta denuncia");
+            throw new AccessDeniedException("Voce nao tem permissao para alterar esta denuncia");
         }
 
         CategoriaResiduo categoria = buscarCategoria(request.categoriaResiduoId());
@@ -89,34 +97,60 @@ public class DenunciaService {
         return DenunciaResponse.from(denunciaRepository.save(denuncia));
     }
 
+    /**
+     * Atualiza o status de uma denuncia.
+     * Regra de negocio:
+     * - Transicao para {@link StatusDenuncia#RESOLVIDA} ou {@link StatusDenuncia#CANCELADA}
+     *   so e permitida para usuarios com role ADMIN ({@link AccessDeniedException}).
+     * - Demais transicoes sao permitidas para o dono da denuncia ou ADMIN.
+     */
     @Transactional
     public DenunciaResponse atualizarStatus(Long id, StatusUpdateRequest request) {
-        Denuncia denuncia = denunciaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Denuncia nao encontrada com id: " + id));
-        denuncia.setStatus(request.status());
+        Denuncia denuncia = buscarEntidade(id);
+        Usuario autenticado = getUsuarioAutenticado();
+        StatusDenuncia novoStatus = request.status();
+        boolean isAdmin = autenticado.getRole() == Role.ADMIN;
+
+        if (STATUS_RESTRITOS_ADMIN.contains(novoStatus) && !isAdmin) {
+            throw new AccessDeniedException(
+                    "Apenas ADMIN pode alterar o status para RESOLVIDA ou CANCELADA");
+        }
+
+        if (!isAdmin && !denuncia.getUsuario().getId().equals(autenticado.getId())) {
+            throw new AccessDeniedException(
+                    "Voce nao tem permissao para alterar o status desta denuncia");
+        }
+
+        denuncia.setStatus(novoStatus);
         return DenunciaResponse.from(denunciaRepository.save(denuncia));
     }
 
     @Transactional
     public void deletar(Long id) {
         if (!denunciaRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Denuncia nao encontrada com id: " + id);
+            throw new RecursoNaoEncontradoException("Denuncia nao encontrada com id: " + id);
         }
         denunciaRepository.deleteById(id);
     }
 
+    private Denuncia buscarEntidade(Long id) {
+        return denunciaRepository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        "Denuncia nao encontrada com id: " + id));
+    }
+
     private CategoriaResiduo buscarCategoria(Long id) {
         return categoriaResiduoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Categoria de residuo nao encontrada com id: " + id));
     }
 
     private Usuario getUsuarioAutenticado() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         if (!(principal instanceof Usuario u)) {
-            throw new BusinessException("Usuario nao autenticado");
+            throw new RegraNegocioException("Usuario nao autenticado");
         }
         return usuarioRepository.findById(u.getId())
-                .orElseThrow(() -> new BusinessException("Usuario autenticado nao encontrado"));
+                .orElseThrow(() -> new RegraNegocioException("Usuario autenticado nao encontrado"));
     }
 }

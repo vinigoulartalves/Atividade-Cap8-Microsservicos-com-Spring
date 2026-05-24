@@ -1,6 +1,6 @@
 package br.com.ecodenuncia.api.service;
 
-import br.com.ecodenuncia.api.config.security.JwtService;
+import br.com.ecodenuncia.api.config.security.TokenService;
 import br.com.ecodenuncia.api.dto.AuthResponse;
 import br.com.ecodenuncia.api.dto.LoginRequest;
 import br.com.ecodenuncia.api.dto.RegisterRequest;
@@ -15,14 +15,14 @@ import java.util.Map;
 
 /**
  * Orquestra o fluxo de autenticacao: delega o cadastro ao UsuarioService,
- * realiza o login via AuthenticationManager e emite o JWT.
+ * realiza o login via AuthenticationManager e emite o JWT via TokenService.
  */
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
     private final UsuarioService usuarioService;
-    private final JwtService jwtService;
+    private final TokenService tokenService;
     private final AuthenticationManager authenticationManager;
 
     @Transactional
@@ -40,7 +40,7 @@ public class AuthService {
     }
 
     private AuthResponse gerarResposta(Usuario usuario) {
-        String token = jwtService.generateToken(usuario, Map.of("role", usuario.getRole().name()));
+        String token = tokenService.generateToken(usuario, Map.of("role", usuario.getRole().name()));
         return AuthResponse.bearer(token, usuario.getId(), usuario.getNome(),
                 usuario.getEmail(), usuario.getRole());
     }

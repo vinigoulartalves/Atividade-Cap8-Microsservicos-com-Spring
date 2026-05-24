@@ -14,14 +14,19 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+/**
+ * Servico responsavel por gerar e validar tokens JWT.
+ * Usa chave HMAC (HS256+) configurada em {@code security.jwt.secret}
+ * (formato Base64).
+ */
 @Service
-public class JwtService {
+public class TokenService {
 
     private final SecretKey signingKey;
     private final long expirationMillis;
     private final String issuer;
 
-    public JwtService(
+    public TokenService(
             @Value("${security.jwt.secret}") String secret,
             @Value("${security.jwt.expiration-ms:3600000}") long expirationMillis,
             @Value("${security.jwt.issuer:ecodenuncia-api}") String issuer
@@ -30,6 +35,10 @@ public class JwtService {
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);
         this.expirationMillis = expirationMillis;
         this.issuer = issuer;
+    }
+
+    public String generateToken(UserDetails userDetails) {
+        return generateToken(userDetails, Map.of());
     }
 
     public String generateToken(UserDetails userDetails, Map<String, Object> extraClaims) {

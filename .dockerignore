@@ -1,4 +1,3 @@
-target
 .idea
 .vscode
 *.iml
@@ -6,3 +5,10 @@ target
 .git
 .gitignore
 .DS_Store
+target/*.jar.original
+target/classes
+target/generated-sources
+target/maven-archiver
+target/maven-status
+target/surefire-reports
+target/test-classes

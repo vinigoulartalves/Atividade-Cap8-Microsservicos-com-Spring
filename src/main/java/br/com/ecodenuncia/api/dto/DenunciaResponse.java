@@ -1,12 +1,15 @@
 package br.com.ecodenuncia.api.dto;
 
-import br.com.ecodenuncia.api.model.CategoriaResiduo;
 import br.com.ecodenuncia.api.model.Denuncia;
 import br.com.ecodenuncia.api.model.StatusDenuncia;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * DTO de saida para exibicao de uma denuncia (GET /denuncias e /{id}).
+ * Inclui dados embutidos do usuario e da categoria associados.
+ */
 public record DenunciaResponse(
         Long id,
         String titulo,
@@ -17,12 +20,13 @@ public record DenunciaResponse(
         String estado,
         BigDecimal latitude,
         BigDecimal longitude,
-        CategoriaResiduo categoria,
         StatusDenuncia status,
+        LocalDateTime dataCriacao,
         Long usuarioId,
         String usuarioNome,
-        LocalDateTime dataCriacao,
-        LocalDateTime dataAtualizacao
+        Long categoriaResiduoId,
+        String categoriaResiduoNome,
+        String categoriaResiduoDescricao
 ) {
     public static DenunciaResponse from(Denuncia d) {
         return new DenunciaResponse(
@@ -35,12 +39,13 @@ public record DenunciaResponse(
                 d.getEstado(),
                 d.getLatitude(),
                 d.getLongitude(),
-                d.getCategoria(),
                 d.getStatus(),
+                d.getDataCriacao(),
                 d.getUsuario() != null ? d.getUsuario().getId() : null,
                 d.getUsuario() != null ? d.getUsuario().getNome() : null,
-                d.getDataCriacao(),
-                d.getDataAtualizacao()
+                d.getCategoriaResiduo() != null ? d.getCategoriaResiduo().getId() : null,
+                d.getCategoriaResiduo() != null ? d.getCategoriaResiduo().getNome() : null,
+                d.getCategoriaResiduo() != null ? d.getCategoriaResiduo().getDescricao() : null
         );
     }
 }

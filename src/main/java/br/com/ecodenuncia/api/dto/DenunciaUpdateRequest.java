@@ -11,10 +11,14 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 
 /**
- * DTO de entrada para cadastro de denuncia (POST /denuncias).
- * Bean Validation: @NotBlank, @NotNull, @Size, @Pattern, @DecimalMin/Max, @Positive.
+ * DTO de entrada para atualizacao completa (PUT) de uma denuncia.
+ * Mesmas regras de validacao do cadastro (DenunciaRequest), porem com classe
+ * propria para deixar explicito o papel no contrato da API.
+ *
+ * Observacao: o status nao e atualizado por este DTO. Para alterar status
+ * use o endpoint dedicado (PATCH /denuncias/{id}/status) com StatusUpdateRequest.
  */
-public record DenunciaRequest(
+public record DenunciaUpdateRequest(
 
         @NotBlank(message = "O titulo e obrigatorio")
         @Size(min = 5, max = 150, message = "O titulo deve ter entre 5 e 150 caracteres")

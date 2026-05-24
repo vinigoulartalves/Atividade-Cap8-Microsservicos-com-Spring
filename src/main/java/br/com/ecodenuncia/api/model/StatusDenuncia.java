@@ -1,9 +1,8 @@
 package br.com.ecodenuncia.api.model;
 
 public enum StatusDenuncia {
-    PENDENTE,
+    ABERTA,
     EM_ANALISE,
-    EM_ATENDIMENTO,
     RESOLVIDA,
     CANCELADA
 }

@@ -1,6 +1,5 @@
 package br.com.ecodenuncia.api.config.security;
 
-import br.com.ecodenuncia.api.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,20 +11,30 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+/**
+ * Configuracao central do Spring Security.
+ *
+ * <p>Regras de autorizacao:</p>
+ * <ul>
+ *   <li>Publicos: /auth/**, GET /denuncias/**, GET /categorias/**</li>
+ *   <li>Autenticado: POST/PUT/DELETE /denuncias</li>
+ *   <li>ADMIN: PATCH /denuncias/{id}/status, POST/PUT/DELETE /categorias</li>
+ * </ul>
+ *
+ * <p>Sessao stateless (somente JWT). Senhas criptografadas com BCrypt.</p>
+ */
 @Configuration
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final UsuarioRepository usuarioRepository;
+    private final CustomUserDetailsService userDetailsService;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -33,10 +42,19 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // -------- Publicos --------
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
-                        .requestMatchers(HttpMethod.DELETE, "/denuncias/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/denuncias/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/denuncias", "/denuncias/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/categorias", "/categorias/*").permitAll()
+
+                        // -------- Apenas ADMIN --------
+                        .requestMatchers(HttpMethod.PATCH, "/denuncias/*/status").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST,   "/categorias", "/categorias/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT,    "/categorias/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/categorias/*").hasRole("ADMIN")
+
+                        // -------- Demais (POST/PUT/DELETE /denuncias, etc.) --------
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
@@ -46,15 +64,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public UserDetailsService userDetailsService() {
-        return email -> usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("Usuario nao encontrado: " + email));
-    }
-
-    @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService());
+        provider.setUserDetailsService(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
         return provider;
     }

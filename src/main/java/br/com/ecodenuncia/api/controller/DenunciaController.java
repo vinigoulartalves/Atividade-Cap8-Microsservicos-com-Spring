@@ -2,6 +2,7 @@ package br.com.ecodenuncia.api.controller;
 
 import br.com.ecodenuncia.api.dto.DenunciaRequest;
 import br.com.ecodenuncia.api.dto.DenunciaResponse;
+import br.com.ecodenuncia.api.dto.DenunciaUpdateRequest;
 import br.com.ecodenuncia.api.dto.StatusUpdateRequest;
 import br.com.ecodenuncia.api.service.DenunciaService;
 import jakarta.validation.Valid;
@@ -53,7 +54,7 @@ public class DenunciaController {
     @PutMapping("/{id}")
     public ResponseEntity<DenunciaResponse> atualizar(
             @PathVariable Long id,
-            @Valid @RequestBody DenunciaRequest request
+            @Valid @RequestBody DenunciaUpdateRequest request
     ) {
         return ResponseEntity.ok(denunciaService.atualizar(id, request));
     }

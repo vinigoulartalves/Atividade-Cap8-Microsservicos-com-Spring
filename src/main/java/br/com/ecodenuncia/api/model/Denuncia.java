@@ -49,35 +49,25 @@ public class Denuncia {
     private BigDecimal longitude;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "DS_CATEGORIA", nullable = false, length = 30)
-    private CategoriaResiduo categoria;
-
-    @Enumerated(EnumType.STRING)
     @Column(name = "DS_STATUS", nullable = false, length = 20)
     private StatusDenuncia status;
+
+    @Column(name = "DT_CRIACAO", nullable = false, updatable = false)
+    private LocalDateTime dataCriacao;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "ID_USUARIO", nullable = false)
     private Usuario usuario;
 
-    @Column(name = "DT_CRIACAO", nullable = false, updatable = false)
-    private LocalDateTime dataCriacao;
-
-    @Column(name = "DT_ATUALIZACAO")
-    private LocalDateTime dataAtualizacao;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "ID_CATEGORIA", nullable = false)
+    private CategoriaResiduo categoriaResiduo;
 
     @PrePersist
     public void prePersist() {
-        LocalDateTime now = LocalDateTime.now();
-        this.dataCriacao = now;
-        this.dataAtualizacao = now;
+        this.dataCriacao = LocalDateTime.now();
         if (this.status == null) {
-            this.status = StatusDenuncia.PENDENTE;
+            this.status = StatusDenuncia.ABERTA;
         }
-    }
-
-    @PreUpdate
-    public void preUpdate() {
-        this.dataAtualizacao = LocalDateTime.now();
     }
 }

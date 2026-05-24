@@ -16,6 +16,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+/**
+ * Filtro executado uma vez por requisicao para validar o token JWT
+ * (header {@code Authorization: Bearer <token>}) e popular o
+ * {@link SecurityContextHolder} com a autenticacao do usuario.
+ */
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -23,7 +28,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String HEADER = "Authorization";
     private static final String PREFIX = "Bearer ";
 
-    private final JwtService jwtService;
+    private final TokenService tokenService;
     private final UserDetailsService userDetailsService;
 
     @Override
@@ -42,7 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String jwt = authHeader.substring(PREFIX.length());
         final String username;
         try {
-            username = jwtService.extractUsername(jwt);
+            username = tokenService.extractUsername(jwt);
         } catch (Exception ex) {
             filterChain.doFilter(request, response);
             return;
@@ -50,7 +55,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            if (jwtService.isTokenValid(jwt, userDetails)) {
+            if (tokenService.isTokenValid(jwt, userDetails)) {
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails,
                         null,
